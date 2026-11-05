@@ -1,4 +1,4 @@
-# Estado do projeto (04/11/2026)
+# Estado do projeto (05/11/2026)
 
 Fase 1 (MVP), conforme a seção 1 dos requisitos. Plano em 8 etapas, com conferência dos sócios
 ao fim de cada uma.
@@ -14,7 +14,7 @@ ao fim de cada uma.
 | 7. Painel e relatórios (Excel/PDF) | Concluída |
 | Implantação no Supabase | Script pronto (`npm run supabase`); aguarda rede e segredos (`docs/implantacao-supabase.md`) |
 | Backup e restauração | Scripts prontos e restauração testada localmente (`scripts/backup/`) |
-| 8. Relatório dos critérios de aceite | Pendente |
+| 8. Relatório dos critérios de aceite | Feito antes da implantação (`docs/relatorio-aceite.md`); itens externos pendentes |
 
 ## Arquivos locais fora do repositório (contêm dados reais)
 - `importacao-ajustes.local.json` — separações de clientes compostos (C1), registro C049,
