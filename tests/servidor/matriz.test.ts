@@ -5,12 +5,12 @@ import { exigirPermissao, pode, type Acao, type Perfil } from "@/servidor/permis
 const TODAS: Acao[] = [
   "pessoa.editar", "processo.editar", "andamento.editar", "prazo.editar", "prazo.cumprir",
   "audiencia.editar", "comarca.cadastrar", "registro.excluir", "processo.reabrir", "parte.mesclar", "usuario.gerenciar",
-  "configuracao.gerenciar", "importacao.executar",
+  "configuracao.gerenciar", "importacao.executar", "compromisso.editar", "agenda.google",
 ];
 
 const esperado: Record<Perfil, Acao[]> = {
   ADMINISTRADOR: TODAS,
-  ADVOGADO: ["pessoa.editar", "processo.editar", "andamento.editar", "prazo.editar", "prazo.cumprir", "audiencia.editar", "comarca.cadastrar"],
+  ADVOGADO: ["pessoa.editar", "processo.editar", "andamento.editar", "prazo.editar", "prazo.cumprir", "audiencia.editar", "compromisso.editar", "comarca.cadastrar"],
   ASSISTENTE: ["pessoa.editar", "processo.editar", "andamento.editar", "prazo.cumprir", "comarca.cadastrar"],
 };
 

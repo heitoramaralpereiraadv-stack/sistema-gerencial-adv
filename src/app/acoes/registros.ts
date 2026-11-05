@@ -7,7 +7,7 @@ import { exigirUsuario } from "@/servidor/auth/sessao";
 import { excluirRegistro } from "@/servidor/servicos/exclusao";
 
 const entrada = z.object({
-  entidade: z.enum(["pessoa", "processo", "andamento", "prazo", "audiencia"]),
+  entidade: z.enum(["pessoa", "processo", "andamento", "prazo", "audiencia", "compromisso"]),
   id: z.uuid(),
 });
 

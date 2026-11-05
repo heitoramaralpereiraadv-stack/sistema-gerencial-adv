@@ -10,6 +10,7 @@ const ABAS = [
   ["feriados", "Feriados"],
   ["comarcas", "Comarcas"],
   ["escritorio", "Escritório"],
+  ["google-agenda", "Google Agenda"],
 ] as const;
 
 /** Somente administrador (seção 5). Cada ação confere de novo no servidor. */

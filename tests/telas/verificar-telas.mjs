@@ -49,7 +49,7 @@ for (const [nome, largura, altura] of [["celular", 390, 844], ["computador", 128
   await verificar("ficha do cliente");
   await pagina.screenshot({ path: `${SAIDA}/${nome}-cliente.png`, fullPage: true });
 
-  for (const caminho of ["/painel", "/relatorios", "/relatorios/prazos", "/relatorios/parte-contraria", "/relatorios/cadastros-incompletos", "/configuracoes/escritorio", "/partes", "/configuracoes/usuarios", "/configuracoes/listas", "/configuracoes/status", "/configuracoes/feriados", "/configuracoes/comarcas"]) {
+  for (const caminho of ["/painel", "/relatorios", "/relatorios/prazos", "/relatorios/parte-contraria", "/relatorios/cadastros-incompletos", "/configuracoes/escritorio", "/partes", "/configuracoes/usuarios", "/configuracoes/listas", "/configuracoes/status", "/configuracoes/feriados", "/configuracoes/comarcas", "/configuracoes/google-agenda"]) {
     await pagina.goto(base + caminho, { waitUntil: "networkidle" });
     await verificar(caminho);
     await pagina.screenshot({ path: `${SAIDA}/${nome}${caminho.replaceAll("/", "-")}.png`, fullPage: true });

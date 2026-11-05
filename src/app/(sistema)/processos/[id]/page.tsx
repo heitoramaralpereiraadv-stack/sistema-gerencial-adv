@@ -14,16 +14,18 @@ import {
   vincularProcessoAcao,
 } from "@/app/acoes/processos";
 import { ajustarPrazoAcao, conferirPrazoAcao, criarPrazoAcao, cumprirPrazoAcao, situacaoPrazoAcao } from "@/app/acoes/prazos";
+import { salvarCompromissoAcao } from "@/app/acoes/agenda";
 import { excluirRegistroAcao } from "@/app/acoes/registros";
 import { BuscaPessoa } from "@/componentes/busca-pessoa";
 import { AreaTexto, Campo, Marcador, Selecao, opcoesDe } from "@/componentes/campos";
 import { CamposPrazo } from "@/componentes/campos-prazo";
 import { Formulario, Painel } from "@/componentes/formulario";
 import { FormularioAndamento } from "@/componentes/formulario-andamento";
+import { FormularioCompromisso } from "@/componentes/formulario-compromisso";
 import { Selo } from "@/componentes/selos";
 import { formatarData } from "@/dominio/prazos/data-civil";
 import { memoriaPrazoEmTexto, type MemoriaPrazo } from "@/dominio/prazos/memoria";
-import { formatarDataHora, paraCampoDataHora } from "@/lib/data-hora";
+import { dataEmSaoPaulo, formatarDataHora, paraCampoDataHora } from "@/lib/data-hora";
 import { hoje, paraDataCivil } from "@/lib/hoje";
 import { GRAU, MODALIDADE, POLO, SITUACAO_PRAZO, TIPO_VINCULO, rotulo } from "@/lib/rotulos";
 import { exigirUsuario } from "@/servidor/auth/sessao";
@@ -63,6 +65,7 @@ export default async function FichaProcesso({ params }: { params: Promise<{ id: 
     prazo: pode(usuario.perfil, "prazo.editar"),
     cumprir: pode(usuario.perfil, "prazo.cumprir"),
     audiencia: pode(usuario.perfil, "audiencia.editar"),
+    compromisso: pode(usuario.perfil, "compromisso.editar"),
     excluir: pode(usuario.perfil, "registro.excluir"),
   };
   const polos = (["ATIVO", "PASSIVO", "TERCEIRO", "OUTRO"] as const)
@@ -137,6 +140,11 @@ export default async function FichaProcesso({ params }: { params: Promise<{ id: 
         {pd.audiencia && (
           <Painel titulo="Nova audiência">
             <FormAudiencia acao={salvarAudienciaAcao.bind(null, p.id, null)} tipos={tiposAudiencia} responsaveis={responsaveis} responsavelPadrao={responsavelPadrao} />
+          </Painel>
+        )}
+        {pd.compromisso && (
+          <Painel titulo="Novo compromisso">
+            <FormularioCompromisso acao={salvarCompromissoAcao.bind(null, p.id, null)} responsaveis={responsaveis} responsavelPadrao={responsavelPadrao} />
           </Painel>
         )}
         {pd.editar && (
@@ -314,6 +322,37 @@ export default async function FichaProcesso({ params }: { params: Promise<{ id: 
                   <Painel titulo="Editar / registrar resultado">
                     <FormAudiencia acao={salvarAudienciaAcao.bind(null, p.id, a.id)} tipos={tiposAudiencia} responsaveis={responsaveis} responsavelPadrao={a.responsavelId} audiencia={a} />
                   </Painel>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="secao">
+        <h2>Compromissos</h2>
+        {p.compromissos.length === 0 ? (
+          <p className="suave">Nenhum compromisso.</p>
+        ) : (
+          <ul className="lista-itens">
+            {p.compromissos.map((c) => (
+              <li key={c.id} className="item">
+                <div className="item-topo">
+                  <strong>{c.diaInteiro ? formatarData(dataEmSaoPaulo(c.inicio)) : formatarDataHora(c.inicio)}</strong>
+                  {c.diaInteiro && <Selo>Dia inteiro</Selo>}
+                  {c.uidExterno && <Selo tipo="info">Google Agenda</Selo>}
+                </div>
+                <p className="item-titulo">{c.titulo}</p>
+                {c.local && <p className="item-linha">{c.local}</p>}
+                {c.descricao && <p className="item-linha texto suave">{c.descricao}</p>}
+                <p className="item-linha suave">Responsável: {c.responsavel.nome}</p>
+                {pd.compromisso && (
+                  <Painel titulo="Editar">
+                    <FormularioCompromisso acao={salvarCompromissoAcao.bind(null, p.id, c.id)} responsaveis={responsaveis} responsavelPadrao={c.responsavelId} compromisso={c} />
+                  </Painel>
+                )}
+                {pd.excluir && (
+                  <Formulario acao={excluirAcao("compromisso", c.id)} rotulo="Excluir" classe="inline" confirmar="Excluir este compromisso?" />
                 )}
               </li>
             ))}

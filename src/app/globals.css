@@ -131,12 +131,16 @@ button.link { background: none; color: var(--primaria); padding: 4px 0; min-heig
 .alerta-amarelo { border-left-color: #f5a524; }
 .alerta-vencido { border-left-color: var(--alerta-cinza); background: #f2f4f7; }
 .destaque-vencidos { background: var(--alerta-cinza); color: #fff; border-radius: var(--raio); padding: 12px 16px; font-weight: 600; }
+.destaque-ok { background: var(--ok-fundo); color: var(--ok); border-radius: var(--raio); padding: 12px 16px; font-weight: 600; }
+.passos { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .acoes-item { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin-top: 6px; }
 
 .lista-simples { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 .lista-simples li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .grade-polos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 10px; }
 .grade-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.grade-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 12px; }
+.campo-url { width: 100%; font-family: ui-monospace, monospace; font-size: 0.85rem; }
 .opcoes-multiplas { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 label.marcador { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
 label.marcador input { min-height: 0; width: 18px; height: 18px; }

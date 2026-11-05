@@ -94,3 +94,13 @@ BACKUP_SENHA=… DESTINO_URL=postgresql://…/banco_de_teste scripts/backup/rest
 O script recusa banco que não esteja vazio e mostra as contagens para comparar com o sistema.
 Testado em 04/11/2026 com o banco de desenvolvimento: contagens idênticas, RLS e histórico
 somente leitura preservados, senha errada recusada.
+
+## Google Agenda (depois da hospedagem)
+
+1. Defina `NEXT_PUBLIC_SITE_URL` na Vercel com o endereço público do sistema (o endereço de
+   assinatura usa esse valor).
+2. Em Configurações › Google Agenda, o administrador liga o envio e adiciona o endereço no
+   Google Agenda (Outras agendas › Do URL). O Google atualiza a agenda assinada por conta
+   própria, em geral em algumas horas.
+3. Para trazer a agenda atual: no Google, Configurações › Importar e exportar › Exportar; envie o
+   .zip na mesma tela e revise os eventos antes de gravar.

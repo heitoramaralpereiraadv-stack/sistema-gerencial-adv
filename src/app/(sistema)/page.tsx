@@ -1,11 +1,13 @@
 // Agenda (tela inicial, seção 5): vencidos, hoje e próximos 7 dias úteis, por responsável.
 
 import Link from "next/link";
+import { salvarCompromissoAcao } from "@/app/acoes/agenda";
 import { cumprirPrazoAcao } from "@/app/acoes/prazos";
-import { Formulario } from "@/componentes/formulario";
+import { Formulario, Painel } from "@/componentes/formulario";
+import { FormularioCompromisso } from "@/componentes/formulario-compromisso";
 import { Selo, SeloAlerta } from "@/componentes/selos";
-import { formatarDataComDia } from "@/dominio/prazos/data-civil";
-import { formatarDataHora } from "@/lib/data-hora";
+import { formatarData, formatarDataComDia } from "@/dominio/prazos/data-civil";
+import { dataEmSaoPaulo, formatarDataHora } from "@/lib/data-hora";
 import { hoje } from "@/lib/hoje";
 import { rotulo, MODALIDADE } from "@/lib/rotulos";
 import { exigirUsuario } from "@/servidor/auth/sessao";
@@ -74,6 +76,7 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
   const { responsavel = "meus" } = await searchParams;
   const [agenda, usuarios] = await Promise.all([obterAgenda(usuario, responsavel), usuariosAtivos()]);
   const podeCumprir = pode(usuario.perfil, "prazo.cumprir");
+  const podeCompromisso = pode(usuario.perfil, "compromisso.editar");
 
   return (
     <>
@@ -96,6 +99,13 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
         </label>
         <button className="secundario">Filtrar</button>
       </form>
+      {podeCompromisso && (
+        <section className="acoes">
+          <Painel titulo="Novo compromisso">
+            <FormularioCompromisso acao={salvarCompromissoAcao.bind(null, null, null)} responsaveis={usuarios} responsavelPadrao={usuario.id} pedirProcesso />
+          </Painel>
+        </section>
+      )}
 
       {agenda.vencidos.length > 0 && (
         <div className="destaque-vencidos" role="alert">
@@ -130,6 +140,31 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
                 <p className="item-linha">{identificacao(a.processo)}</p>
                 {a.localOuLink && <p className="item-linha suave">{a.localOuLink}</p>}
                 <p className="item-linha suave">Responsável: {a.responsavel.nome}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="secao">
+        <h2>
+          Compromissos <span className="contagem">{agenda.compromissos.length}</span>
+        </h2>
+        {agenda.compromissos.length === 0 ? (
+          <p className="suave">Nenhum compromisso hoje ou nos próximos {DIAS_UTEIS_AGENDA} dias úteis.</p>
+        ) : (
+          <ul className="lista-itens">
+            {agenda.compromissos.map((c) => (
+              <li key={c.id} className="item">
+                <div className="item-topo">
+                  <strong>{c.diaInteiro ? formatarData(dataEmSaoPaulo(c.inicio)) : formatarDataHora(c.inicio)}</strong>
+                  {c.diaInteiro && <Selo>Dia inteiro</Selo>}
+                  {c.uidExterno && <Selo tipo="info">Google Agenda</Selo>}
+                </div>
+                <p className="item-titulo">{c.titulo}</p>
+                {c.processo ? <p className="item-linha">{identificacao(c.processo)}</p> : <p className="item-linha suave">Sem processo</p>}
+                {c.local && <p className="item-linha suave">{c.local}</p>}
+                <p className="item-linha suave">Responsável: {c.responsavel.nome}</p>
               </li>
             ))}
           </ul>

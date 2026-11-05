@@ -321,6 +321,7 @@ export async function obterFichaProcesso(usuario: UsuarioAtual, id: string, clie
       andamentos: { where: { excluidoEm: null }, include: { tipo: true, usuario: { select: { nome: true } } }, orderBy: [{ data: "desc" }, { criadoEm: "desc" }] },
       prazos: { where: { excluidoEm: null }, include: { responsavel: { select: { id: true, nome: true } }, conferidoPor: { select: { nome: true } } }, orderBy: { dataFinalEfetiva: "asc" } },
       audiencias: { where: { excluidoEm: null }, include: { tipo: true, responsavel: { select: { nome: true } } }, orderBy: { dataHora: "asc" } },
+      compromissos: { where: { excluidoEm: null }, include: { responsavel: { select: { nome: true } } }, orderBy: { inicio: "asc" } },
     });
     const visivel = filtroProcessosVisiveis(usuario);
     const resumo = { select: { id: true, numeroCnj: true, assunto: true, status: { select: { nome: true } } } } as const;

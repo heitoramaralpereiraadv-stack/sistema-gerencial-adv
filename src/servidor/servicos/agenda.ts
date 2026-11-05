@@ -60,7 +60,7 @@ export async function obterAgenda(
   const processo: Prisma.ProcessoWhereInput = { excluidoEm: null, AND: [filtroProcessosVisiveis(usuario)] };
   const limite = paraDate(somarDias(hoje, JANELA_CORRIDA));
 
-  const [prazos, audiencias, calendarios] = await Promise.all([
+  const [prazos, audiencias, compromissos, calendarios] = await Promise.all([
     cliente.prazo.findMany({
       where: { situacao: "ABERTO", excluidoEm: null, processo, ...(responsavelId && { responsavelId }), dataFinalEfetiva: { lte: limite } },
       include: { processo: incluirProcesso, responsavel: { select: { id: true, nome: true } } },
@@ -76,6 +76,16 @@ export async function obterAgenda(
       include: { processo: incluirProcesso, responsavel: { select: { id: true, nome: true } }, tipo: true },
       orderBy: { dataHora: "asc" },
     }),
+    cliente.compromisso.findMany({
+      where: {
+        excluidoEm: null,
+        OR: [{ processoId: null }, { processo }],
+        ...(responsavelId && { responsavelId }),
+        inicio: { gte: dataHoraDeSaoPaulo(`${hoje}T00:00`), lte: limite },
+      },
+      include: { processo: incluirProcesso, responsavel: { select: { id: true, nome: true } } },
+      orderBy: { inicio: "asc" },
+    }),
     carregarCalendarios(cliente, paraDate(hoje)),
   ]);
 
@@ -88,8 +98,15 @@ export async function obterAgenda(
     .map((a) => ({ ...a, diasUteis: diasUteisAte(calendarios.para(a.processo), hoje, dataEmSaoPaulo(a.dataHora)) }))
     .filter((a) => a.diasUteis !== null && a.diasUteis <= DIAS_UTEIS_AGENDA);
 
+  // Compromisso avulso: calendário sem comarca nem tribunal (fins de semana, nacionais e recesso).
+  const semProcesso = { comarcaId: null, tribunalCodigo: null };
+  const itensCompromisso = compromissos
+    .map((c) => ({ ...c, diasUteis: diasUteisAte(calendarios.para(c.processo ?? semProcesso), hoje, dataEmSaoPaulo(c.inicio)) }))
+    .filter((c) => c.diasUteis !== null && c.diasUteis <= DIAS_UTEIS_AGENDA);
+
   return {
     hoje,
+    compromissos: itensCompromisso,
     vencidos: itensPrazo.filter((p) => p.diasUteis === null),
     deHoje: itensPrazo.filter((p) => p.diasUteis === 0),
     proximos: itensPrazo.filter((p) => p.diasUteis !== null && p.diasUteis >= 1 && p.diasUteis <= DIAS_UTEIS_AGENDA),

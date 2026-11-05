@@ -5,7 +5,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { usuarioDeDesenvolvimento } from "./servidor/auth/desenvolvimento";
 
-const PUBLICAS = ["/entrar", "/esqueci-senha", "/auth/confirm"];
+// /calendario/<token>: agenda assinada pelo Google (o token é a autorização; ver google-agenda.ts).
+const PUBLICAS = ["/entrar", "/esqueci-senha", "/auth/confirm", "/calendario"];
 
 export async function proxy(request: NextRequest) {
   if (usuarioDeDesenvolvimento()) return NextResponse.next({ request });

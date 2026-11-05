@@ -47,6 +47,8 @@ model Usuario {
   historico            Historico[]
   acessos              RegistroAcesso[]
   lotesImportacao      LoteImportacao[]
+  compromissos         Compromisso[]
+  lotesAgenda          LoteAgenda[]
 
   @@map("usuario")
 }
@@ -332,6 +334,7 @@ model Processo {
   andamentos      Andamento[]
   prazos          Prazo[]
   audiencias      Audiencia[]
+  compromissos    Compromisso[]
 
   @@index([statusId])
   @@index([areaId])
@@ -511,6 +514,8 @@ model Audiencia {
   localOuLink   String?
   responsavelId String              @db.Uuid
   resultado     String?
+  /// UID do evento do Google Agenda que originou a audiência (evita importar duas vezes).
+  uidExterno    String?
   criadoEm      DateTime            @default(now()) @db.Timestamptz(3)
   atualizadoEm  DateTime            @updatedAt @db.Timestamptz(3)
   excluidoEm    DateTime?           @db.Timestamptz(3)
@@ -520,7 +525,35 @@ model Audiencia {
   responsavel Usuario   @relation(fields: [responsavelId], references: [id])
 
   @@index([responsavelId, dataHora])
+  @@index([uidExterno])
   @@map("audiencia")
+}
+
+/// Compromisso da Agenda (G1–G4): ligado a um processo ou avulso. Vem do Google Agenda ou é
+/// lançado no sistema. Dia inteiro: `inicio` é meia-noite de São Paulo do dia.
+model Compromisso {
+  id            String    @id @default(uuid()) @db.Uuid
+  processoId    String?   @db.Uuid
+  titulo        String
+  inicio        DateTime  @db.Timestamptz(3)
+  fim           DateTime? @db.Timestamptz(3)
+  diaInteiro    Boolean   @default(false)
+  local         String?
+  descricao     String?
+  responsavelId String    @db.Uuid
+  /// UID do evento do Google Agenda de origem (nulo quando lançado no sistema).
+  uidExterno    String?
+  criadoEm      DateTime  @default(now()) @db.Timestamptz(3)
+  atualizadoEm  DateTime  @updatedAt @db.Timestamptz(3)
+  excluidoEm    DateTime? @db.Timestamptz(3)
+
+  processo    Processo? @relation(fields: [processoId], references: [id])
+  responsavel Usuario   @relation(fields: [responsavelId], references: [id])
+
+  @@index([responsavelId, inicio])
+  @@index([processoId])
+  @@index([uidExterno])
+  @@map("compromisso")
 }
 
 // ───────────────────────── Calendário ─────────────────────────
@@ -627,21 +660,44 @@ model LoteImportacao {
   @@map("lote_importacao")
 }
 
+/// Importação de arquivo .ics do Google Agenda, revisada evento a evento antes de gravar.
+model LoteAgenda {
+  id          String       @id @default(uuid()) @db.Uuid
+  arquivo     String
+  situacao    SituacaoLote @default(EM_REVISAO)
+  eventos     Json
+  decisoes    Json?
+  revisadoEm  DateTime?    @db.Timestamptz(3)
+  relatorio   Json?
+  criadoPorId String       @db.Uuid
+  criadoEm    DateTime     @default(now()) @db.Timestamptz(3)
+  gravadoEm   DateTime?    @db.Timestamptz(3)
+
+  criadoPor Usuario @relation(fields: [criadoPorId], references: [id])
+
+  @@map("lote_agenda")
+}
+
 // ───────────────────────── Escritório ─────────────────────────
 
 /// Dados do cabeçalho dos relatórios (seção 6, D7). Registro único (id = 1), editado pelo administrador.
 model ConfiguracaoEscritorio {
-  id           Int      @id @default(1)
-  razaoSocial  String   @default("Medeiros e Barbosa Sociedade de Advogados")
-  cnpj         String?
-  registroOab  String?
-  endereco     String?
-  telefone     String?
-  email        String?
+  id                  Int       @id @default(1)
+  razaoSocial         String    @default("Medeiros e Barbosa Sociedade de Advogados")
+  cnpj                String?
+  registroOab         String?
+  endereco            String?
+  telefone            String?
+  email               String?
   /// Logotipo (PNG ou JPEG, até 200 KB) em base64.
-  logoBase64   String?
-  logoTipo     String?
-  atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
+  logoBase64          String?
+  logoTipo            String?
+  /// Endereço de assinatura da agenda no Google (G3): token cifrado (para mostrar ao
+  /// administrador) e HMAC (para conferir o acesso). Nulos = assinatura desligada.
+  agendaTokenCifrado  String?
+  agendaTokenHash     String?
+  agendaTokenCriadoEm DateTime? @db.Timestamptz(3)
+  atualizadoEm        DateTime  @updatedAt @db.Timestamptz(3)
 
   @@map("configuracao_escritorio")
 }

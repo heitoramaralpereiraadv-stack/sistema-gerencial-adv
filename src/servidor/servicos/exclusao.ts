@@ -7,7 +7,7 @@ import { NaoEncontradoError } from "../erros";
 import { exigirPermissao } from "../permissoes/matriz";
 import { filtroProcessosVisiveis } from "../permissoes/visibilidade";
 
-export type EntidadeExcluivel = "pessoa" | "processo" | "andamento" | "prazo" | "audiencia";
+export type EntidadeExcluivel = "pessoa" | "processo" | "andamento" | "prazo" | "audiencia" | "compromisso";
 
 export async function excluirRegistro(
   usuario: UsuarioAtual,
@@ -40,6 +40,9 @@ export async function excluirRegistro(
           break;
         case "audiencia":
           r = await tx.audiencia.updateMany({ where: { ...ativo, processo: visivel }, data: dados });
+          break;
+        case "compromisso":
+          r = await tx.compromisso.updateMany({ where: { ...ativo, OR: [{ processoId: null }, { processo: visivel }] }, data: dados });
           break;
       }
       if (r.count === 0) throw new NaoEncontradoError();

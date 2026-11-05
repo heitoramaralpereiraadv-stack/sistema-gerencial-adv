@@ -15,6 +15,7 @@ ao fim de cada uma.
 | Implantação no Supabase | Script pronto (`npm run supabase`); aguarda rede e segredos (`docs/implantacao-supabase.md`) |
 | Backup e restauração | Scripts prontos e restauração testada localmente (`scripts/backup/`) |
 | 8. Relatório dos critérios de aceite | Feito antes da implantação (`docs/relatorio-aceite.md`); itens externos pendentes |
+| Google Agenda (G1–G4) | Feito: compromissos na Agenda e na ficha; importação revisada (Configurações › Google Agenda); envio por assinatura (`/calendario/<token>`) |
 
 ## Arquivos locais fora do repositório (contêm dados reais)
 - `importacao-ajustes.local.json` — separações de clientes compostos (C1), registro C049,
@@ -26,7 +27,6 @@ ao fim de cada uma.
 - **A11** — plano do Supabase e expiração da sessão por inatividade.
 - **D8** — plano de e-mail na GoDaddy (Professional Email ou Microsoft 365).
 - **E1** — repositório do código. **E2** — projeto Supabase e segredos.
-- **Google Agenda** — decidido (G1–G4); falta confirmar como identificar o processo de um evento (ver decisões).
 - **B12** — conferência dos casos de prazo por advogado.
 - **Seção 7** — encarregado de dados (DPO). Prazo de guarda decidido: 2 anos após o encerramento.
 - **Confirmar** — definição de "com sentença" na movimentação mensal (andamento Sentença ou data
