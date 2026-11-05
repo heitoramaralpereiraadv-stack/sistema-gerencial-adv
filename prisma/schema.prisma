@@ -1,0 +1,647 @@
+// Sistema Gerencial — Medeiros e Barbosa Sociedade de Advogados
+// Schema da fase 1 (seção 3 dos requisitos + decisões da etapa 1).
+//
+// Convenções:
+// - ids uuid; datas sem hora usam @db.Date; data e hora usam timestamptz.
+// - Exclusão é lógica (excluidoEm), separada do status processual "Arquivado" (A3).
+// - Campos *Cifrado guardam texto cifrado (AES-256-GCM) na aplicação; *Hash é HMAC
+//   para unicidade e busca exata (seção 7).
+// - Todas as tabelas recebem RLS sem políticas na migração: o acesso é só pelo
+//   servidor (Prisma), nunca pela chave pública do Supabase.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Usuários e permissões ─────────────────────────
+
+enum Perfil {
+  ADMINISTRADOR
+  ADVOGADO
+  ASSISTENTE
+}
+
+/// Espelha auth.users do Supabase (mesmo id). Senha e 2FA ficam no Supabase Auth.
+model Usuario {
+  id               String   @id @db.Uuid
+  nome             String
+  email            String   @unique
+  perfil           Perfil
+  /// Advogado: vê todos os processos ou só os seus (seção 2). Pendente D2.
+  veTodosProcessos Boolean  @default(true)
+  ativo            Boolean  @default(true)
+  criadoEm         DateTime @default(now()) @db.Timestamptz(3)
+  atualizadoEm     DateTime @updatedAt @db.Timestamptz(3)
+
+  pessoasResponsavel   Pessoa[]         @relation("PessoaResponsavel")
+  processosResponsavel Processo[]       @relation("ProcessoResponsavel")
+  prazosResponsavel    Prazo[]          @relation("PrazoResponsavel")
+  prazosConferidos     Prazo[]          @relation("PrazoConferente")
+  audiencias           Audiencia[]
+  andamentos           Andamento[]
+  historico            Historico[]
+  acessos              RegistroAcesso[]
+  lotesImportacao      LoteImportacao[]
+
+  @@map("usuario")
+}
+
+// ───────────────────────── Listas de domínio ─────────────────────────
+
+enum TipoLista {
+  AREA
+  CLASSE
+  TIPO_ANDAMENTO
+  CATEGORIA_PARTE // só PJ: instituição financeira, seguradora, empresa (A6)
+  QUALIFICACAO_PARTE // autor, réu, executado, avalista… (A5)
+  TIPO_AUDIENCIA // (D15)
+}
+
+/// Listas editáveis pelo administrador. Itens em uso não são apagados, só desativados.
+model ItemLista {
+  id    String    @id @default(uuid()) @db.Uuid
+  lista TipoLista
+  valor String
+  ordem Int       @default(0)
+  ativo Boolean   @default(true)
+
+  processosArea      Processo[]      @relation("ProcessoArea")
+  processosClasse    Processo[]      @relation("ProcessoClasse")
+  andamentos         Andamento[]
+  pessoasCategoria   Pessoa[]
+  audiencias         Audiencia[]
+  partesQualificadas ParteProcesso[] @relation("ParteQualificacao")
+
+  @@unique([lista, valor])
+  @@map("item_lista")
+}
+
+/// Comportamento fixo de cada status; o administrador edita nome e ordem (A8).
+enum ComportamentoStatus {
+  ATIVO // Em andamento, Em grau de recurso, Cumprimento de sentença, A protocolar
+  SUSPENSO_EXIGE_MOTIVO // Sobrestado, Suspenso (4.3)
+  CONCLUIDO_NAO_DEFINITIVO // Acordo homologado: equivale a sentença, processo segue ativo (A4)
+  ENCERRADO_EXIGE_DATA // Encerrado — êxito/improcedente, Arquivado: bloqueia novos prazos (4.3)
+}
+
+enum Resultado {
+  EXITO
+  IMPROCEDENTE
+  ACORDO
+}
+
+model StatusProcesso {
+  id            String              @id @default(uuid()) @db.Uuid
+  nome          String              @unique
+  comportamento ComportamentoStatus
+  /// Preenche Processo.resultado ao entrar no status (ex.: "Encerrado — êxito" → EXITO).
+  resultado     Resultado?
+  ordem         Int                 @default(0)
+  ativo         Boolean             @default(true)
+
+  processos Processo[]
+
+  @@map("status_processo")
+}
+
+// ───────────────────────── Referências ─────────────────────────
+
+/// Código J.TR do número CNJ (ex.: "8.09" → TJGO). Carregado por seed.
+model Tribunal {
+  codigo     String  @id // "8.09"
+  sigla      String  @unique
+  nome       String
+  segmento   String // J: "4", "5", "8"…
+  uf         String? @db.Char(2)
+  /// Sede: feriados dos processos em 2º grau e Turmas Recursais (B8).
+  sedeCidade String?
+  sedeUf     String? @db.Char(2)
+
+  processos Processo[]
+  feriados  Feriado[]
+  comarcas  Comarca[]
+
+  @@map("tribunal")
+}
+
+/// Comarca/município estruturado: necessário para casar feriados municipais (4.2, regra 6).
+model Comarca {
+  id             String  @id @default(uuid()) @db.Uuid
+  nome           String
+  uf             String  @db.Char(2)
+  tribunalCodigo String?
+  /// Código OOOO de origem no número CNJ, quando conhecido.
+  codigoOrigem   String?
+
+  tribunal  Tribunal?  @relation(fields: [tribunalCodigo], references: [codigo])
+  processos Processo[]
+  feriados  Feriado[]
+
+  @@unique([nome, uf])
+  @@map("comarca")
+}
+
+// ───────────────────────── Pessoas ─────────────────────────
+
+enum TipoPessoa {
+  PF
+  PJ
+  ESPOLIO
+  ENTE_PUBLICO
+}
+
+enum SituacaoPessoa {
+  ATIVO
+  INATIVO
+  PROSPECCAO
+}
+
+model Pessoa {
+  id                           String          @id @default(uuid()) @db.Uuid
+  tipo                         TipoPessoa
+  nome                         String
+  /// Só para PJ (A6).
+  categoriaId                  String?         @db.Uuid
+  cpfCnpjCifrado               String?
+  cpfCnpjHash                  String?         @unique
+  rgCifrado                    String?
+  /// Dados fiscais e de caráter personalíssimo (saúde, renda…), cifrados (D5).
+  informacoesReservadasCifrado String?
+  dataNascimento               DateTime?       @db.Date
+  endereco                     String?
+  cidade                       String?
+  uf                           String?         @db.Char(2)
+  ehCliente                    Boolean         @default(false)
+  situacao                     SituacaoPessoa?
+  dataEntrada                  DateTime?       @db.Date
+  responsavelId                String?         @db.Uuid
+  observacoes                  String?
+  cadastroIncompleto           Boolean         @default(false)
+  pendencias                   String?
+  /// "C001" etc., para rastrear a origem na planilha.
+  codigoLegado                 String?
+  criadoEm                     DateTime        @default(now()) @db.Timestamptz(3)
+  atualizadoEm                 DateTime        @updatedAt @db.Timestamptz(3)
+  excluidoEm                   DateTime?       @db.Timestamptz(3)
+
+  categoria      ItemLista?        @relation(fields: [categoriaId], references: [id])
+  responsavel    Usuario?          @relation("PessoaResponsavel", fields: [responsavelId], references: [id])
+  contatos       Contato[]
+  documentos     DocumentoPessoa[]
+  representa     Representante[]   @relation("Representante")
+  representantes Representante[]   @relation("Representado")
+  participacoes  ParteProcesso[]
+
+  @@index([nome])
+  @@index([ehCliente, situacao])
+  @@map("pessoa")
+}
+
+enum TipoContato {
+  TELEFONE
+  WHATSAPP
+  EMAIL
+}
+
+/// "telefones, e-mails" no plural (seção 3).
+model Contato {
+  id         String      @id @default(uuid()) @db.Uuid
+  pessoaId   String      @db.Uuid
+  tipo       TipoContato
+  valor      String
+  /// Só dígitos, para busca por telefone.
+  valorBusca String?
+  principal  Boolean     @default(false)
+
+  pessoa Pessoa @relation(fields: [pessoaId], references: [id])
+
+  @@index([valorBusca])
+  @@map("contato")
+}
+
+/// Demais documentos, todos cifrados (D5). CPF/CNPJ e RG ficam na própria Pessoa.
+enum TipoDocumento {
+  CNH
+  CTPS
+  PIS_NIT_PASEP
+  TITULO_ELEITOR
+  PASSAPORTE
+  CERTIDAO
+  NUMERO_BENEFICIO
+  INSCRICAO_ESTADUAL
+  INSCRICAO_MUNICIPAL
+  OUTRO
+}
+
+model DocumentoPessoa {
+  id            String        @id @default(uuid()) @db.Uuid
+  pessoaId      String        @db.Uuid
+  tipo          TipoDocumento
+  numeroCifrado String
+  /// HMAC do número normalizado, para busca exata.
+  numeroHash    String
+  descricao     String?
+
+  pessoa Pessoa @relation(fields: [pessoaId], references: [id])
+
+  @@index([numeroHash])
+  @@map("documento_pessoa")
+}
+
+enum QualidadeRepresentacao {
+  CURADOR
+  INVENTARIANTE
+  REPRESENTANTE_LEGAL
+  SOCIO
+}
+
+model Representante {
+  id             String                 @id @default(uuid()) @db.Uuid
+  pessoaId       String                 @db.Uuid
+  representadoId String                 @db.Uuid
+  qualidade      QualidadeRepresentacao
+  observacoes    String?
+
+  pessoa       Pessoa @relation("Representante", fields: [pessoaId], references: [id])
+  representado Pessoa @relation("Representado", fields: [representadoId], references: [id])
+
+  @@unique([pessoaId, representadoId, qualidade])
+  @@map("representante")
+}
+
+// ───────────────────────── Processos ─────────────────────────
+
+enum Grau {
+  PRIMEIRO
+  SEGUNDO
+  RECURSAL // Turma Recursal
+  SUPERIOR
+}
+
+model Processo {
+  id                 String     @id @default(uuid()) @db.Uuid
+  /// Formatado NNNNNNN-DD.AAAA.J.TR.OOOO; nulo enquanto "A protocolar".
+  numeroCnj          String?    @unique
+  cnjAno             Int?
+  cnjSegmento        String?    @db.Char(1)
+  cnjOrigem          String?    @db.Char(4)
+  tribunalCodigo     String?
+  grau               Grau?
+  orgaoJulgador      String?
+  comarcaId          String?    @db.Uuid
+  areaId             String     @db.Uuid
+  classeId           String?    @db.Uuid
+  assunto            String?
+  dataDistribuicao   DateTime?  @db.Date
+  dataCitacao        DateTime?  @db.Date
+  valorCausa         Decimal?   @db.Decimal(15, 2)
+  statusId           String     @db.Uuid
+  faseAtual          String?
+  /// Obrigatórios quando o status é SUSPENSO_EXIGE_MOTIVO (4.3).
+  motivoSuspensao    String?
+  dataSuspensao      DateTime?  @db.Date
+  /// Obrigatória quando o status é ENCERRADO_EXIGE_DATA (4.3).
+  dataEncerramento   DateTime?  @db.Date
+  resultado          Resultado?
+  /// Data da sentença ou da homologação do acordo (A4).
+  dataResultado      DateTime?  @db.Date
+  segredoJustica     Boolean    @default(false)
+  responsavelId      String     @db.Uuid
+  observacoes        String?
+  cadastroIncompleto Boolean    @default(false)
+  pendencias         String?
+  codigoLegado       String?
+  criadoEm           DateTime   @default(now()) @db.Timestamptz(3)
+  atualizadoEm       DateTime   @updatedAt @db.Timestamptz(3)
+  excluidoEm         DateTime?  @db.Timestamptz(3)
+
+  tribunal        Tribunal?         @relation(fields: [tribunalCodigo], references: [codigo])
+  comarca         Comarca?          @relation(fields: [comarcaId], references: [id])
+  area            ItemLista         @relation("ProcessoArea", fields: [areaId], references: [id])
+  classe          ItemLista?        @relation("ProcessoClasse", fields: [classeId], references: [id])
+  status          StatusProcesso    @relation(fields: [statusId], references: [id])
+  responsavel     Usuario           @relation("ProcessoResponsavel", fields: [responsavelId], references: [id])
+  partes          ParteProcesso[]
+  vinculosOrigem  VinculoProcesso[] @relation("VinculoOrigem")
+  vinculosDestino VinculoProcesso[] @relation("VinculoDestino")
+  andamentos      Andamento[]
+  prazos          Prazo[]
+  audiencias      Audiencia[]
+
+  @@index([statusId])
+  @@index([areaId])
+  @@index([responsavelId])
+  @@index([tribunalCodigo, comarcaId])
+  @@map("processo")
+}
+
+enum Polo {
+  ATIVO
+  PASSIVO
+  TERCEIRO
+  OUTRO
+}
+
+model ParteProcesso {
+  id                    String  @id @default(uuid()) @db.Uuid
+  processoId            String  @db.Uuid
+  pessoaId              String  @db.Uuid
+  polo                  Polo
+  ehClienteDoEscritorio Boolean @default(false)
+
+  processo      Processo    @relation(fields: [processoId], references: [id])
+  pessoa        Pessoa      @relation(fields: [pessoaId], references: [id])
+  /// Várias por parte: "Executado (avalista)" → executado + avalista (A5).
+  qualificacoes ItemLista[] @relation("ParteQualificacao")
+
+  @@unique([processoId, pessoaId, polo])
+  @@index([pessoaId])
+  @@map("parte_processo")
+}
+
+/// Lista fechada da seção 3. "Relacionado" depende da resposta C4.
+enum TipoVinculo {
+  RECURSO
+  CUMPRIMENTO_SENTENCA
+  INCIDENTE
+  CONEXO
+  REPROPOSITURA
+  APENSO
+  RELACIONADO // número citado nas observações da planilha, tipo a definir (C4)
+}
+
+model VinculoProcesso {
+  id                  String      @id @default(uuid()) @db.Uuid
+  processoOrigemId    String      @db.Uuid
+  processoVinculadoId String      @db.Uuid
+  tipo                TipoVinculo
+  observacoes         String?
+
+  processoOrigem    Processo @relation("VinculoOrigem", fields: [processoOrigemId], references: [id])
+  processoVinculado Processo @relation("VinculoDestino", fields: [processoVinculadoId], references: [id])
+
+  @@unique([processoOrigemId, processoVinculadoId, tipo])
+  @@map("vinculo_processo")
+}
+
+// ───────────────────────── Andamentos, prazos, audiências ─────────────────────────
+
+enum OrigemAndamento {
+  MANUAL
+  DATAJUD // fase 2
+}
+
+model Andamento {
+  id           String          @id @default(uuid()) @db.Uuid
+  processoId   String          @db.Uuid
+  data         DateTime        @db.Date
+  tipoId       String          @db.Uuid
+  descricao    String
+  origem       OrigemAndamento @default(MANUAL)
+  usuarioId    String          @db.Uuid
+  criadoEm     DateTime        @default(now()) @db.Timestamptz(3)
+  atualizadoEm DateTime        @updatedAt @db.Timestamptz(3)
+  excluidoEm   DateTime?       @db.Timestamptz(3)
+
+  processo Processo  @relation(fields: [processoId], references: [id])
+  tipo     ItemLista @relation(fields: [tipoId], references: [id])
+  usuario  Usuario   @relation(fields: [usuarioId], references: [id])
+  prazos   Prazo[]
+
+  @@index([processoId, data(sort: Desc)])
+  @@map("andamento")
+}
+
+/// Regras de cada forma estão no motor (4.2). Outras formas dependem de B9.
+enum FormaIntimacao {
+  DJE // regra 2: publicada no 1º dia útil após a disponibilização
+  PORTAL_CONSULTA // regra 3: intimação no dia da consulta
+  PORTAL_TACITA // regra 3: sem consulta, 10 dias corridos do envio
+  DATA_INFORMADA // demais formas (B9): o usuário informa a data da intimação
+}
+
+/// MANUAL: o motor não definiu a regra (pendências B) e o usuário lançou a data final (D11).
+enum ModoCalculo {
+  AUTOMATICO
+  MANUAL
+}
+
+enum TipoContagem {
+  UTEIS
+  CORRIDOS
+}
+
+enum SituacaoPrazo {
+  ABERTO
+  CUMPRIDO
+  PERDIDO
+  CANCELADO
+}
+
+model Prazo {
+  id                    String         @id @default(uuid()) @db.Uuid
+  processoId            String         @db.Uuid
+  andamentoId           String?        @db.Uuid
+  descricao             String
+  /// Data de disponibilização (DJe), da consulta ou do envio (portal), conforme a forma.
+  dataReferencia        DateTime       @db.Date
+  formaIntimacao        FormaIntimacao
+  /// Oficial de justiça, correio, em audiência… quando a forma é DATA_INFORMADA.
+  formaIntimacaoDetalhe String?
+  quantidadeDias        Int
+  tipoContagem          TipoContagem
+  emDobro               Boolean        @default(false)
+  /// Prazo criminal: em dias corridos, início e vencimento vão para o dia útil seguinte (B3).
+  criminal              Boolean        @default(false)
+  modoCalculo           ModoCalculo    @default(AUTOMATICO)
+  /// Código da pendência que impediu o cálculo automático (B1…B5, B9).
+  pendenciaRegra        String?
+  dataIntimacao         DateTime?      @db.Date
+  dataInicio            DateTime?      @db.Date
+  /// Obrigatória no modo AUTOMATICO (CHECK na migração).
+  dataFinalCalculada    DateTime?      @db.Date
+  /// Obrigatória no modo MANUAL; justificativa facultativa (D11).
+  dataFinalManual       DateTime?      @db.Date
+  justificativaManual   String?
+  /// Prevalece sobre a calculada; exige justificativa (CHECK na migração).
+  dataFinalAjustada     DateTime?      @db.Date
+  justificativaAjuste   String?
+  /// Ajustada ?? manual ?? calculada; mantida pelo serviço, usada na Agenda e nos alertas.
+  dataFinalEfetiva      DateTime       @db.Date
+  /// Memória de cálculo gravada no momento do cálculo (4.2, regra 9).
+  memoriaCalculo        Json
+  versaoMotor           String
+  /// Conferência do advogado: sem ela o prazo aparece como "não conferido" (4).
+  conferidoPorId        String?        @db.Uuid
+  conferidoEm           DateTime?      @db.Timestamptz(3)
+  responsavelId         String         @db.Uuid
+  situacao              SituacaoPrazo  @default(ABERTO)
+  cumpridoEm            DateTime?      @db.Date
+  observacoes           String?
+  criadoEm              DateTime       @default(now()) @db.Timestamptz(3)
+  atualizadoEm          DateTime       @updatedAt @db.Timestamptz(3)
+  excluidoEm            DateTime?      @db.Timestamptz(3)
+
+  processo     Processo   @relation(fields: [processoId], references: [id])
+  andamento    Andamento? @relation(fields: [andamentoId], references: [id])
+  responsavel  Usuario    @relation("PrazoResponsavel", fields: [responsavelId], references: [id])
+  conferidoPor Usuario?   @relation("PrazoConferente", fields: [conferidoPorId], references: [id])
+
+  @@index([responsavelId, situacao, dataFinalEfetiva])
+  @@index([processoId])
+  @@map("prazo")
+}
+
+enum ModalidadeAudiencia {
+  PRESENCIAL
+  VIRTUAL
+}
+
+model Audiencia {
+  id            String              @id @default(uuid()) @db.Uuid
+  processoId    String              @db.Uuid
+  dataHora      DateTime            @db.Timestamptz(3)
+  tipoId        String              @db.Uuid
+  modalidade    ModalidadeAudiencia
+  localOuLink   String?
+  responsavelId String              @db.Uuid
+  resultado     String?
+  criadoEm      DateTime            @default(now()) @db.Timestamptz(3)
+  atualizadoEm  DateTime            @updatedAt @db.Timestamptz(3)
+  excluidoEm    DateTime?           @db.Timestamptz(3)
+
+  processo    Processo  @relation(fields: [processoId], references: [id])
+  tipo        ItemLista @relation(fields: [tipoId], references: [id])
+  responsavel Usuario   @relation(fields: [responsavelId], references: [id])
+
+  @@index([responsavelId, dataHora])
+  @@map("audiencia")
+}
+
+// ───────────────────────── Calendário ─────────────────────────
+
+enum Abrangencia {
+  NACIONAL
+  ESTADUAL
+  MUNICIPAL
+  FORENSE
+}
+
+/// FERIADO e INDISPONIBILIDADE (4.2, regra 8) são dias não úteis inteiros.
+/// EXPEDIENTE_REDUZIDO (B13, ex.: Quarta-feira de Cinzas): vencimento nele é prorrogado
+/// (regra 8); como início ou no meio do prazo, depende da resposta B6.
+enum NaturezaDia {
+  FERIADO
+  INDISPONIBILIDADE
+  EXPEDIENTE_REDUZIDO
+}
+
+/// Mantida pelo administrador. O recesso de 20/12 a 20/01 é regra fixa do motor, não registro.
+model Feriado {
+  id             String      @id @default(uuid()) @db.Uuid
+  data           DateTime    @db.Date
+  abrangencia    Abrangencia
+  natureza       NaturezaDia @default(FERIADO)
+  uf             String?     @db.Char(2)
+  comarcaId      String?     @db.Uuid
+  tribunalCodigo String?
+  descricao      String
+  /// Ato normativo de origem (portaria, lei), para conferência.
+  fonte          String?
+
+  comarca  Comarca?  @relation(fields: [comarcaId], references: [id])
+  tribunal Tribunal? @relation(fields: [tribunalCodigo], references: [codigo])
+
+  @@index([data])
+  @@map("feriado")
+}
+
+// ───────────────────────── Auditoria e LGPD ─────────────────────────
+
+enum Operacao {
+  CRIACAO
+  ALTERACAO
+  EXCLUSAO
+}
+
+/// Gravado por trigger no Postgres; somente leitura (seção 2 e 7). Valores
+/// de campos cifrados são registrados mascarados.
+model Historico {
+  id            BigInt   @id @default(autoincrement())
+  entidade      String
+  registroId    String
+  operacao      Operacao
+  campo         String?
+  valorAnterior String?
+  valorNovo     String?
+  usuarioId     String?  @db.Uuid
+  dataHora      DateTime @default(now()) @db.Timestamptz(3)
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidade, registroId, dataHora(sort: Desc)])
+  @@map("historico")
+}
+
+/// Registro de acesso às fichas de cliente (seção 7), guardado por 5 anos.
+model RegistroAcesso {
+  id         BigInt   @id @default(autoincrement())
+  usuarioId  String   @db.Uuid
+  entidade   String
+  registroId String
+  dataHora   DateTime @default(now()) @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidade, registroId])
+  @@map("registro_acesso")
+}
+
+// ───────────────────────── Importação ─────────────────────────
+
+enum SituacaoLote {
+  EM_REVISAO
+  GRAVADO
+  DESCARTADO
+}
+
+/// Proposta de importação (separações, mesclagens, pendências) revisada antes de gravar (8.1).
+model LoteImportacao {
+  id          String       @id @default(uuid()) @db.Uuid
+  arquivo     String
+  hashArquivo String
+  situacao    SituacaoLote @default(EM_REVISAO)
+  proposta    Json
+  relatorio   Json?
+  criadoPorId String       @db.Uuid
+  criadoEm    DateTime     @default(now()) @db.Timestamptz(3)
+  gravadoEm   DateTime?    @db.Timestamptz(3)
+
+  criadoPor Usuario @relation(fields: [criadoPorId], references: [id])
+
+  @@map("lote_importacao")
+}
+
+// ───────────────────────── Escritório ─────────────────────────
+
+/// Dados do cabeçalho dos relatórios (seção 6, D7). Registro único (id = 1), editado pelo administrador.
+model ConfiguracaoEscritorio {
+  id           Int      @id @default(1)
+  razaoSocial  String   @default("Medeiros e Barbosa Sociedade de Advogados")
+  cnpj         String?
+  registroOab  String?
+  endereco     String?
+  telefone     String?
+  email        String?
+  /// Logotipo (PNG ou JPEG, até 200 KB) em base64.
+  logoBase64   String?
+  logoTipo     String?
+  atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("configuracao_escritorio")
+}

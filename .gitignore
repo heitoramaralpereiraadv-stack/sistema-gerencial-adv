@@ -1,0 +1,13 @@
+node_modules/
+src/generated/
+.env*
+!.env.example
+# Dados reais de clientes nunca entram no repositório
+*.xlsx
+requisitos*.md
+backups/
+.next/
+next-env.d.ts
+# Ajustes da importação com nomes reais de clientes
+*.local.json
+tsconfig.tsbuildinfo

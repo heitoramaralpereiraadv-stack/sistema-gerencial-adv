@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "NaturezaDia" ADD VALUE 'EXPEDIENTE_REDUZIDO';
