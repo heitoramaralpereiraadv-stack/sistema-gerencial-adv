@@ -25,7 +25,8 @@ export default function Entrar() {
   return (
     <main className="cartao-central">
       <div className="cartao">
-        <h1>Medeiros e Barbosa</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-medeiros-barbosa.jpg" alt="Medeiros e Barbosa Sociedade de Advogados" width={231} height={80} className="logo-entrada" />
         <p className="subtitulo">Sistema gerencial — acesso restrito</p>
         <form className="pilha" action={enviar}>
           <label>

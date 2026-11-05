@@ -3,7 +3,7 @@
 
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import { formatarDataHora } from "@/lib/data-hora";
-import { linhaDoEscritorio } from "./excel";
+import { linhasDoEscritorio } from "./excel";
 import type { ContextoExportacao, Tabela } from "./tipos";
 
 const A4_PAISAGEM: [number, number] = [841.89, 595.28];
@@ -84,10 +84,14 @@ export async function gerarPdf(tabela: Tabela, ctx: ContextoExportacao): Promise
       pagina.drawImage(logo, { x: MARGEM, y: y - 32, width: logo.width * escala, height: 32 });
       xTexto += logo.width * escala + 10;
     }
-    texto(pagina, ctx.escritorio.razaoSocial, xTexto, y - 12, negrito, 12, AZUL);
-    const dados = linhaDoEscritorio(ctx);
-    if (dados) texto(pagina, dados, xTexto, y - 26, normal, 8, SUAVE);
-    y -= 42;
+    texto(pagina, ctx.escritorio.razaoSocial, xTexto, y - 11, negrito, 12, AZUL);
+    linhasDoEscritorio(ctx).forEach((l, i) => {
+      // Linha longa demais para a página: reduz a fonte em vez de passar da margem.
+      const disponivel = largura - MARGEM - xTexto;
+      const tamanho = Math.min(8, (8 * disponivel) / Math.max(1, normal.widthOfTextAtSize(limpar(normal, l), 8)));
+      texto(pagina, l, xTexto, y - 23 - i * 10, normal, tamanho, SUAVE);
+    });
+    y -= 44;
     pagina.drawLine({ start: { x: MARGEM, y }, end: { x: largura - MARGEM, y }, thickness: 0.5, color: SUAVE });
     y -= 16;
   };

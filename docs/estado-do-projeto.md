@@ -24,12 +24,11 @@ ao fim de cada uma.
 
 ## Pendências dos sócios
 - **A11** — plano do Supabase e expiração da sessão por inatividade.
-- **D7** — registro da sociedade na OAB, e-mail e logotipo do cabeçalho.
 - **D8** — plano de e-mail na GoDaddy (Professional Email ou Microsoft 365).
 - **E1** — repositório do código. **E2** — projeto Supabase e segredos.
-- **G1–G4** — importação do Google Agenda (recomendado: arquivo .ics, fase 1).
+- **Google Agenda** — decidido (G1–G4); falta confirmar como identificar o processo de um evento (ver decisões).
 - **B12** — conferência dos casos de prazo por advogado.
-- **Seção 7** — prazo de guarda após o encerramento; encarregado de dados (DPO).
+- **Seção 7** — encarregado de dados (DPO). Prazo de guarda decidido: 2 anos após o encerramento.
 - **Confirmar** — definição de "com sentença" na movimentação mensal (andamento Sentença ou data
   de sentença/homologação) e de "cadastros incompletos" (inclui processo sem comarca e os
   marcados na importação).

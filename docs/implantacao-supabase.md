@@ -71,7 +71,7 @@ Depois da implantação:
 
 ## Parte 4 — backup (A10, sem custo)
 
-Num computador do escritório (Linux, macOS ou Windows com WSL), com o cliente do PostgreSQL
+No servidor físico do escritório (Linux, macOS ou Windows com WSL), com o cliente do PostgreSQL
 na mesma versão do Supabase ou mais nova:
 
 ```bash

@@ -7,9 +7,14 @@ import type { ContextoExportacao, Tabela } from "./tipos";
 const AZUL = "FF1F3A5F";
 const CINZA = "FFEAECF0";
 
-export function linhaDoEscritorio(ctx: ContextoExportacao): string {
+/** Dados do escritório em até duas linhas: registros; endereço e contatos. */
+export function linhasDoEscritorio(ctx: ContextoExportacao): string[] {
   const e = ctx.escritorio;
-  return [e.cnpj && `CNPJ ${e.cnpj}`, e.registroOab && `OAB ${e.registroOab}`, e.endereco, e.telefone, e.email].filter(Boolean).join(" · ");
+  const oab = e.registroOab && (/^oab/i.test(e.registroOab) ? e.registroOab : `OAB ${e.registroOab}`);
+  return [
+    [e.cnpj && `CNPJ ${e.cnpj}`, oab].filter(Boolean).join(" · "),
+    [e.endereco, e.telefone, e.email].filter(Boolean).join(" · "),
+  ].filter(Boolean);
 }
 
 export async function gerarExcel(tabela: Tabela, ctx: ContextoExportacao): Promise<Buffer> {
@@ -29,8 +34,7 @@ export async function gerarExcel(tabela: Tabela, ctx: ContextoExportacao): Promi
     aba.addImage(imagem, { tl: { col: largura - 1, row: 0 }, ext: { width: 90, height: 45 } });
   }
   titulo(ctx.escritorio.razaoSocial, { bold: true, size: 13, color: { argb: AZUL } });
-  const dados = linhaDoEscritorio(ctx);
-  if (dados) titulo(dados, { size: 9, color: { argb: "FF5B6573" } });
+  for (const dados of linhasDoEscritorio(ctx)) titulo(dados, { size: 9, color: { argb: "FF5B6573" } });
   aba.addRow([]);
   titulo(tabela.titulo, { bold: true, size: 12 });
   for (const f of ctx.filtrosDescritos) titulo(f, { size: 9 });

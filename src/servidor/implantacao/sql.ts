@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TRIBUNAIS } from "@/dominio/cnj/tribunais";
 import { feriadosPadrao } from "@/dominio/prazos/feriados-padrao";
-import { ESCRITORIO, LISTAS_INICIAIS, STATUS_INICIAIS } from "../seed/carga-inicial";
+import { ESCRITORIO, LISTAS_INICIAIS, logoDoEscritorio, STATUS_INICIAIS } from "../seed/carga-inicial";
 
 /** Literal SQL seguro (aspas simples duplicadas). */
 export const lit = (v: string | number | boolean | null | undefined): string =>
@@ -88,8 +88,10 @@ export function sqlCargaInicial(anos: number[]): string {
       );
     }
   }
+  const logo = logoDoEscritorio();
   linhas.push(
-    `INSERT INTO configuracao_escritorio (id, "razaoSocial", cnpj, endereco, telefone, "atualizadoEm") VALUES (1, ${lit(ESCRITORIO.razaoSocial)}, ${lit(ESCRITORIO.cnpj)}, ${lit(ESCRITORIO.endereco)}, ${lit(ESCRITORIO.telefone)}, now()) ON CONFLICT (id) DO NOTHING;`,
+    `INSERT INTO configuracao_escritorio (id, "razaoSocial", cnpj, "registroOab", endereco, telefone, email, "logoBase64", "logoTipo", "atualizadoEm")` +
+      ` VALUES (1, ${lit(ESCRITORIO.razaoSocial)}, ${lit(ESCRITORIO.cnpj)}, ${lit(ESCRITORIO.registroOab)}, ${lit(ESCRITORIO.endereco)}, ${lit(ESCRITORIO.telefone)}, ${lit(ESCRITORIO.email)}, ${lit(logo?.logoBase64)}, ${lit(logo?.logoTipo)}, now()) ON CONFLICT (id) DO NOTHING;`,
   );
   linhas.push("COMMIT;");
   return linhas.join("\n");

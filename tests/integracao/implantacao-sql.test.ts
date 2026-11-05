@@ -50,8 +50,8 @@ describe("implantação por SQL", () => {
     expect(await Promise.all(["tribunal", "item_lista", "status_processo", "comarca", "feriado", "configuracao_escritorio"].map(contar))).toEqual(antes);
     const sede = await cliente.query(`SELECT "sedeCidade", "sedeUf" FROM tribunal WHERE codigo = '5.15'`);
     expect(sede.rows[0]).toEqual({ sedeCidade: "Campinas", sedeUf: "SP" });
-    const escritorio = await cliente.query(`SELECT cnpj, telefone FROM configuracao_escritorio`);
-    expect(escritorio.rows[0]).toEqual({ cnpj: "24.605.755/0001-88", telefone: "(62) 3928-0055" });
+    const escritorio = await cliente.query(`SELECT cnpj, "registroOab", telefone, "logoTipo", length("logoBase64") > 1000 AS com_logo FROM configuracao_escritorio`);
+    expect(escritorio.rows[0]).toEqual({ cnpj: "24.605.755/0001-88", registroOab: "OAB/GO 001793", telefone: "(62) 3928-0055", logoTipo: "image/jpeg", com_logo: true });
   });
 
   it("cria usuário inicial com histórico de carga e passa na verificação", async () => {

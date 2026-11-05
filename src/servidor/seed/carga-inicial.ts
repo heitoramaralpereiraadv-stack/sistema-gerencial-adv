@@ -1,5 +1,7 @@
 // Carga inicial das tabelas de referência. Idempotente: pode rodar de novo sem duplicar.
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { TRIBUNAIS } from "@/dominio/cnj/tribunais";
 import { feriadosPadrao } from "@/dominio/prazos/feriados-padrao";
@@ -38,13 +40,21 @@ export const STATUS_INICIAIS = [
   { nome: "Arquivado", comportamento: "ENCERRADO_EXIGE_DATA" },
 ] as const;
 
-/** Dados informados pelos sócios (D7, 04/11/2026). Faltam registro na OAB, e-mail e logotipo. */
+/** Dados informados pelos sócios (D7, 04 e 05/11/2026). */
 export const ESCRITORIO = {
   razaoSocial: "Medeiros e Barbosa Sociedade de Advogados",
   cnpj: "24.605.755/0001-88",
+  registroOab: "OAB/GO 001793",
   endereco: "Av. T-7, nº 371, Sala 1208, Ed. Lourenço Office, Setor Oeste, Goiânia/GO, CEP 74140-110",
   telefone: "(62) 3928-0055",
+  email: "escritorio@medeirosebarbosa.com.br",
 };
+
+/** Logotipo enviado pelos sócios (public/logo-medeiros-barbosa.jpg), para o cabeçalho dos relatórios. */
+export function logoDoEscritorio(): { logoBase64: string; logoTipo: string } | null {
+  const arquivo = join(process.cwd(), "public", "logo-medeiros-barbosa.jpg");
+  return existsSync(arquivo) ? { logoBase64: readFileSync(arquivo).toString("base64"), logoTipo: "image/jpeg" } : null;
+}
 
 const NOMES_TRIBUNAIS: Record<string, string> = { "4": "Tribunal Regional Federal", "5": "Tribunal Regional do Trabalho", "8": "Tribunal de Justiça" };
 
@@ -81,7 +91,7 @@ export async function cargaInicial(prisma: PrismaClient, anosFeriados: number[])
       });
       for (const ano of anosFeriados) await carregarFeriados(tx, ano);
       // Cabeçalho dos relatórios (D7): só cria; edições posteriores ficam em Configurações.
-      await tx.configuracaoEscritorio.upsert({ where: { id: 1 }, update: {}, create: { id: 1, ...ESCRITORIO } });
+      await tx.configuracaoEscritorio.upsert({ where: { id: 1 }, update: {}, create: { id: 1, ...ESCRITORIO, ...logoDoEscritorio() } });
     },
     { timeout: 60_000 },
   );

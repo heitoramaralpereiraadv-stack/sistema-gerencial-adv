@@ -58,3 +58,8 @@ Registro das respostas dos sócios às dúvidas da etapa 1. Itens não listados 
 | Importação | BRB – Banco de Brasília e BRB Crédito, Financiamento e Investimento são pessoas distintas (não mesclar). |
 | C8 | Rute: perfil Advogada. Heitor Amaral Pereira: perfil Advogado (nome confirmado). E-mails informados na conversa (não versionados). |
 | D7 | Cabeçalho: Medeiros e Barbosa Sociedade de Advogados, CNPJ 24.605.755/0001-88, Av. T-7, nº 371, Sala 1208, Ed. Lourenço Office, Setor Oeste, Goiânia/GO, CEP 74140-110, (62) 3928-0055. Pendentes: registro na OAB, e-mail e logotipo. |
+| Publicações (fase 2) | Verificar publicações pelo número da OAB dos advogados no DJEN e no DataJud; integração com serviços privados de captura poderá ser feita depois. Sem inteligência artificial, por ora. Nenhum prazo sem conferência (seção 4). |
+| G1–G4 | Google Agenda: cada evento importado é classificado caso a caso (audiência ou compromisso); sem escolha, vira compromisso ligado ao processo. Importar do Google e enviar ao Google (decisão expressa dos sócios, seção 7). Por ora, o administrador centraliza a agenda. |
+| D7 | Concluído: OAB/GO 001793 e logotipo (`public/logo-medeiros-barbosa.jpg`). E-mail de contato: escritorio@medeirosebarbosa.com.br (a confirmar). |
+| LGPD — guarda | Dados permanecem por 2 anos após o encerramento do processo (prazo da ação rescisória); o escritório pode descartar antes, a seu critério. Encarregado (DPO): pendente. |
+| Backup | Servidor físico do escritório para o backup diário e a cópia semanal. |

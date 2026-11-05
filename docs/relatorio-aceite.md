@@ -17,8 +17,8 @@ para serem fechados (Supabase, conferência por advogado ou uso pelos usuários)
 | 5 | Assistente não consegue excluir registro, nem por chamada direta ao servidor | **Passou** | Teste chama a ação do servidor diretamente com sessão de assistente: recusada para todos os tipos de registro; exclusão física bloqueada no próprio banco | — |
 | 6 | Toda alteração aparece no histórico com usuário e data | **Passou** | Gatilho no banco grava criação, alteração e exclusão com usuário e data e recusa escrita sem usuário; histórico imutável. Na importação real, 100% dos registros criados têm a criação no histórico, atribuída ao usuário que importou (exceto a comarca de Goiânia, da carga inicial) | — |
 | 7 | Painel mostra os mesmos totais da aba Relatório após a importação | **Passou, com diferenças explicadas** | `scripts/conferir-painel.ts` recalcula a aba Relatório pelas fórmulas da planilha e compara: 50 indicadores, todos iguais ou com diferença explicada (abaixo) | Confirmar a definição de "cadastros incompletos" |
-| 8 | Exportação em Excel e PDF dos relatórios da seção 6 | **Passou** | Os 10 relatórios da seção 6, a lista de processos e a ficha do cliente exportados nos dois formatos com os dados reais (até 6 páginas de PDF); testes reabrem os arquivos gerados | Registro na OAB, e-mail e logotipo no cabeçalho (D7) |
-| 9 | Restauração de backup testada | **Passou localmente** | Backup cifrado da base real importada, restaurado em banco vazio: contagens idênticas, RLS e histórico somente leitura preservados, painel confere; senha errada recusada | Agendar o backup no computador do escritório e repetir a restauração com o banco do Supabase |
+| 8 | Exportação em Excel e PDF dos relatórios da seção 6 | **Passou** | Os 10 relatórios da seção 6, a lista de processos e a ficha do cliente exportados nos dois formatos com os dados reais (até 6 páginas de PDF); testes reabrem os arquivos gerados | — (cabeçalho completo: OAB/GO 001793, e-mail e logotipo) |
+| 9 | Restauração de backup testada | **Passou localmente** | Backup cifrado da base real importada, restaurado em banco vazio: contagens idênticas, RLS e histórico somente leitura preservados, painel confere; senha errada recusada | Agendar o backup no servidor físico do escritório e repetir a restauração com o banco do Supabase |
 | 10 | Telas utilizáveis em celular | **Passou localmente** | 17 telas percorridas no navegador em 390 px e 1280 px, sem erro e sem rolagem lateral; fluxo "andamento com prazo" e importação completos no celular | Uso pelos sócios nos próprios aparelhos |
 
 ## Critério 7 — diferenças explicadas
@@ -53,5 +53,5 @@ texto; o sistema usa a categoria de cada pessoa, depois das separações e mescl
 1. Implantação no Supabase (`docs/implantacao-supabase.md`) e hospedagem (Vercel).
 2. Importação real pela tela de revisão e conferência do relatório pelos sócios.
 3. Conferência dos casos de prazo por advogado (B12).
-4. Backup agendado no escritório e restauração testada com o banco de produção.
-5. Uso pelos sócios no celular; dados restantes do cabeçalho (D7).
+4. Backup agendado no servidor físico do escritório e restauração testada com o banco de produção.
+5. Uso pelos sócios no celular.

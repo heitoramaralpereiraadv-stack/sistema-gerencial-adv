@@ -221,3 +221,4 @@ input.campo-curto { width: 5.5em; }
 .barras-barra { display: block; height: 12px; min-width: 4px; background: var(--primaria); border-radius: 0 4px 4px 0; }
 .barras-valor { text-align: right; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
 .tabela th.numero, .tabela td.numero { text-align: right; font-variant-numeric: tabular-nums; }
+.logo-entrada { display: block; margin: 0 auto 8px; max-width: 100%; height: auto; }
